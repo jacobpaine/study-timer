@@ -76,97 +76,51 @@ const playFocusStartTone = () => playTone(880, 0.4, "sine");
 const playBreakStartTone = () => playTone(660, 0.4, "triangle");
 const playSessionEndTone = () => playTone(440, 0.6, "square");
 
-interface TimerProps {
-  storageKey: string;
-}
-
-const Timer: React.FC<TimerProps> = ({ storageKey }) => {
+const Timer: React.FC<{ storageKey?: string }> = ({ storageKey = "timer" }) => {
   const [completedCounts, setCompletedCounts] = useState(() => {
     const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return (
-          parsed.completedCounts || { focus: 0, shortBreak: 0, longBreak: 0 }
-        );
-      } catch (e) {}
-    }
-    return { focus: 0, shortBreak: 0, longBreak: 0 };
+    return saved
+      ? JSON.parse(saved).completedCounts || {
+          focus: 0,
+          shortBreak: 0,
+          longBreak: 0,
+        }
+      : { focus: 0, shortBreak: 0, longBreak: 0 };
   });
+
   const [mode, setMode] = useState<Mode>(() => {
     const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.mode || "focus";
-      } catch (e) {}
-    }
-    return "focus";
+    return saved ? JSON.parse(saved).mode || "focus" : "focus";
   });
-  const [isRunning, setIsRunning] = useState(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.isRunning || false;
-      } catch (e) {}
-    }
-    return false;
-  });
+
+  const [isRunning, setIsRunning] = useState(false);
+
   const [sessions, setSessions] = useState(0);
   const [title, setTitle] = useState(() => {
     const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.title || "Timer";
-      } catch (e) {}
-    }
-    return "Timer";
+    return saved ? JSON.parse(saved).title || "Timer" : "Timer";
   });
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
 
   const [durations, setDurations] = useState(() => {
     const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return (
-          parsed.durations || {
-            focus: 25 * 60,
-            shortBreak: 5 * 60,
-            longBreak: 15 * 60,
-          }
-        );
-      } catch (e) {}
-    }
-    return {
-      focus: 25 * 60,
-      shortBreak: 5 * 60,
-      longBreak: 15 * 60,
-    };
+    return saved
+      ? JSON.parse(saved).durations || {
+          focus: 1500,
+          shortBreak: 300,
+          longBreak: 900,
+        }
+      : { focus: 1500, shortBreak: 300, longBreak: 900 };
   });
 
   const [secondsLeft, setSecondsLeft] = useState(() => {
     const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (typeof parsed.secondsLeft === "number") return parsed.secondsLeft;
-      } catch (e) {
-        console.error("Error parsing secondsLeft:", e);
-      }
-    }
-    return 25 * 60;
+    return saved ? JSON.parse(saved).secondsLeft || 1500 : 1500;
   });
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (!hasLoaded) return;
-    if (intervalRef.current) clearInterval(intervalRef.current);
-
     if (isRunning) {
       intervalRef.current = setInterval(() => {
         setSecondsLeft((prev) => {
@@ -180,31 +134,11 @@ const Timer: React.FC<TimerProps> = ({ storageKey }) => {
     }
 
     return () => clearInterval(intervalRef.current!);
-  }, [isRunning, hasLoaded]);
+  }, [isRunning]);
 
   useEffect(() => {
-    setSecondsLeft(durations[mode]);
+    setSecondsLeft(secondsLeft);
   }, [mode, durations]);
-
-  // useEffect(() => {
-  //   const saved = localStorage.getItem(storageKey);
-  //   if (saved) {
-  //     try {
-  //       const parsed = JSON.parse(saved);
-  //       if (parsed.title) setTitle(parsed.title);
-  //       if (parsed.completedCounts) setCompletedCounts(parsed.completedCounts);
-  //       if (parsed.durations) setDurations(parsed.durations);
-  //       if (parsed.mode) setMode(parsed.mode);
-  //       if (typeof parsed.secondsLeft === "number")
-  //         setSecondsLeft(parsed.secondsLeft);
-  //       if (typeof parsed.isRunning === "boolean")
-  //         setIsRunning(parsed.isRunning);
-  //     } catch (e) {
-  //       console.error("Error loading timer state:", e);
-  //     }
-  //   }
-  //   setHasLoaded(true); // ✅ Mark as loaded
-  // }, []);
 
   useEffect(() => {
     const data = {
@@ -220,7 +154,10 @@ const Timer: React.FC<TimerProps> = ({ storageKey }) => {
 
   const handleSessionEnd = () => {
     setIsRunning(false);
-
+    setCompletedCounts((prev) => ({
+      ...prev,
+      [mode]: prev[mode] + 1,
+    }));
     if (mode === "focus") {
       const nextMode = (sessions + 1) % 4 === 0 ? "longBreak" : "shortBreak";
       setMode(nextMode);
@@ -229,11 +166,6 @@ const Timer: React.FC<TimerProps> = ({ storageKey }) => {
     } else {
       setMode("focus");
     }
-
-    setCompletedCounts((prev) => ({
-      ...prev,
-      [mode]: prev[mode] + 1,
-    }));
   };
 
   const handleDurationChange = (newValue: number, targetMode: Mode) => {

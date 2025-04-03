@@ -121,3 +121,35 @@
   font-weight: bold;
   padding: .35rem
 }
+
+button.add-timer {
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  background-color: #6c63ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin: 1rem 0;
+}
+
+button.add-timer:hover {
+  background-color: #574fd4;
+}
+
+button.remove-timer {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  background-color: #ff5c5c;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+button.remove-timer:hover {
+  background-color: #d94a4a;
+}
