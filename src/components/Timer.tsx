@@ -207,10 +207,14 @@ const Timer: React.FC<{
       )}
 
       <div className="button-row">
-        <button onClick={() => setIsRunning((r) => !r)}>
+        <button
+          className="button button-tertiary"
+          onClick={() => setIsRunning((r) => !r)}
+        >
           {isRunning ? "Pause" : "Start"}
         </button>
         <button
+          className="button button-tertiary"
           onClick={() => {
             const newMode = mode === "focus" ? "shortBreak" : "focus";
             setMode(newMode);

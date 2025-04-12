@@ -47,8 +47,7 @@ const App = () => {
         console.warn(`Skipping invalid localStorage item '${key}'`);
       }
     }
-
-    setTimerKeys(loadedKeys);
+    setTimerKeys(loadedKeys.sort((a, b) => a.localeCompare(b)));
     setScores((prev) => {
       const merged: ScoreMap = { ...prev };
       for (const key of Object.keys(loadedScores)) {
@@ -223,105 +222,111 @@ const App = () => {
       <div className="layout">
         <div className="left-panel">
           <h2>Goals</h2>
-          <button onClick={addGoal}>+ Add Goal</button>
+          <button className="button button-primary" onClick={addGoal}>
+            + Add Goal
+          </button>
           <div className="goals-list">
-            {goals.map((goal) => {
-              const isEditing = editingId === goal.id;
-              const score = goal.linkedTo
-                ? scores[goal.linkedTo]?.focus || 0
-                : 0;
-              const goalMet = score >= goal.hours;
-              return (
-                <div
-                  key={goal.id}
-                  style={{ backgroundColor: goalMet ? "#d4edda" : undefined }}
-                  className="card"
-                >
-                  <div className="goal-row">
-                    <select
-                      value={goal.linkedTo || ""}
-                      onChange={(e) =>
-                        updateGoal(goal.id, { linkedTo: e.target.value })
-                      }
-                    >
-                      <option value="">(Not linked)</option>
-                      {timerKeys.map((key) => (
-                        <option key={key} value={key}>
-                          {key}
-                        </option>
-                      ))}
-                    </select>
-
-                    <input
-                      type="checkbox"
-                      checked={goal.completed}
-                      onChange={() => toggleComplete(goal.id)}
-                    />
-                    {isEditing ? (
-                      <EditableField
-                        value={goal.name}
-                        onChange={(newName) =>
-                          updateGoal(goal.id, { name: newName })
+            {goals
+              .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+              .map((goal) => {
+                const isEditing = editingId === goal.id;
+                const score = goal.linkedTo
+                  ? scores[goal.linkedTo]?.focus || 0
+                  : 0;
+                const goalMet = score >= goal.hours;
+                return (
+                  <div
+                    key={goal.id}
+                    style={{ backgroundColor: goalMet ? "#d4edda" : undefined }}
+                    className="card"
+                  >
+                    <div className="goal-row">
+                      <select
+                        value={goal.linkedTo || ""}
+                        onChange={(e) =>
+                          updateGoal(goal.id, { linkedTo: e.target.value })
                         }
-                      />
-                    ) : (
-                      <div
-                        onClick={() => setEditingId(goal.id)}
-                        className={`goal-name-display ${
-                          goal.completed ? "strike" : ""
-                        }`}
                       >
-                        {goal.name || (
-                          <span style={{ color: "#aaa" }}>
-                            Click to add name
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <EditableNumberField
-                      value={goal.hours}
-                      onChange={(val) => updateGoal(goal.id, { hours: val })}
+                        <option value="">(Not linked)</option>
+                        {timerKeys.map((key) => (
+                          <option key={key} value={key}>
+                            {key}
+                          </option>
+                        ))}
+                      </select>
+
+                      <input
+                        type="checkbox"
+                        checked={goal.completed}
+                        onChange={() => toggleComplete(goal.id)}
+                      />
+                      {isEditing ? (
+                        <EditableField
+                          value={goal.name}
+                          onChange={(newName) =>
+                            updateGoal(goal.id, { name: newName })
+                          }
+                        />
+                      ) : (
+                        <div
+                          onClick={() => setEditingId(goal.id)}
+                          className={`goal-name-display ${
+                            goal.completed ? "strike" : ""
+                          }`}
+                        >
+                          {goal.name || (
+                            <span style={{ color: "#aaa" }}>
+                              Click to add name
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <EditableNumberField
+                        value={goal.hours}
+                        onChange={(val) => updateGoal(goal.id, { hours: val })}
+                      />
+                      <button
+                        onClick={() => removeGoal(goal.id)}
+                        className="remove-goal-button"
+                        title="Remove goal"
+                      >
+                        ❌
+                      </button>
+                    </div>
+                    <textarea
+                      className={`goal-description ${
+                        goal.completed ? "strike" : ""
+                      }`}
+                      value={goal.description}
+                      onChange={(e) =>
+                        updateGoal(goal.id, { description: e.target.value })
+                      }
+                      placeholder="Describe your goal..."
                     />
-                    <button
-                      onClick={() => removeGoal(goal.id)}
-                      className="remove-goal-button"
-                      title="Remove goal"
-                    >
-                      ❌
-                    </button>
                   </div>
-                  <textarea
-                    className={`goal-description ${
-                      goal.completed ? "strike" : ""
-                    }`}
-                    value={goal.description}
-                    onChange={(e) =>
-                      updateGoal(goal.id, { description: e.target.value })
-                    }
-                    placeholder="Describe your goal..."
+                );
+              })}
+          </div>
+
+          <h2>Totals</h2>
+          {Object.entries(scores)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([title, { focus, break: brk }]) => {
+              return (
+                <div className="time-display" key={title}>
+                  <strong>{title}</strong>: {"  "}🎯{"  "}
+                  <ScoreField
+                    value={focus}
+                    onChange={(val: number) => updateFocusScore(title, val)}
+                  />
+                  {"  "}☕{"  "}
+                  <ScoreField
+                    value={brk}
+                    onChange={(val: number) => updateBreakScore(title, val)}
                   />
                 </div>
               );
             })}
-          </div>
-
-          <h2>Scores</h2>
-          {Object.entries(scores).map(([title, { focus, break: brk }]) => {
-            return (
-              <div className="time-display" key={title}>
-                <strong>{title}</strong>: {"  "}🎯{"  "}
-                <ScoreField
-                  value={focus}
-                  onChange={(val: number) => updateFocusScore(title, val)}
-                />
-                {"  "}☕{"  "}
-                <ScoreField
-                  value={brk}
-                  onChange={(val: number) => updateBreakScore(title, val)}
-                />
-              </div>
-            );
-          })}
         </div>
 
         <div className="right-panel">
@@ -334,7 +339,7 @@ const App = () => {
 
           <div className="timers-column">
             {timerKeys.map((key) => (
-              <div key={key} className="timer-row-ui">
+              <div key={key} className="timer-row-ui card">
                 <Timer
                   storageKey={key}
                   onRemove={() => removeTimer(key)}
@@ -356,24 +361,30 @@ const App = () => {
           </div>
         </div>
       </div>
-      <button onClick={() => exportDataAsJSON({ goals, scores })}>
-        Download Data
-      </button>
-      <button
-        onClick={() =>
-          importDataFromJSON((data) => {
-            const timerTitles = Object.keys(data.timers || {});
-            setGoals(data.goals || []);
-            setScores(data.scores || {});
-            setTimerKeys((prev) => {
-              const allKeys = new Set([...prev, ...timerTitles]);
-              return Array.from(allKeys);
-            });
-          })
-        }
-      >
-        Load Data
-      </button>
+      <div className="buttonBox">
+        <button
+          className="button button-secondary"
+          onClick={() => exportDataAsJSON({ goals, scores })}
+        >
+          Download Data
+        </button>
+        <button
+          className="button button-secondary"
+          onClick={() =>
+            importDataFromJSON((data) => {
+              const timerTitles = Object.keys(data.timers || {});
+              setGoals(data.goals || []);
+              setScores(data.scores || {});
+              setTimerKeys((prev) => {
+                const allKeys = new Set([...prev, ...timerTitles]);
+                return Array.from(allKeys);
+              });
+            })
+          }
+        >
+          Load Data
+        </button>
+      </div>
     </div>
   );
 };
