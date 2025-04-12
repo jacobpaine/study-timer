@@ -1,155 +1,276 @@
-.app {
-  text-align: center;
-  font-family: sans-serif;
-  padding: 2rem;
-  background-color: #f5f5f5;
+.button {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
 }
 
-.timer {
-  margin-top: 2rem;
-  max-width: 100%;
-  width: 250px;
-  margin-left: auto;
-  margin-right: auto;
+.button-primary {
+  background-color: #3366cc;
+  color: white;
+}
+
+.button-primary:hover {
+  background-color: #254a99;
+}
+
+.button-secondary {
+  background-color: #ddd;
+  color: #333;
+}
+
+.button-secondary:hover {
+  background-color: #ccc;
+}
+
+.button-danger {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.button-danger:hover {
+  background-color: #c0392b;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.2rem;
+  color: #666;
+}
+
+.icon-button:hover {
+  color: #c00;
+}
+.card {
+  background-color: #fff;
   padding: 1rem;
-  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1rem;
+}
+
+.layout {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+.left-panel h2,
+.right-panel h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.left-panel {
+  flex: 1;
+  min-width: 250px;
+  max-width: 300px;
+  padding: 1rem;
+  background-color: #e6e6e6;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.time-display {
-  font-size: clamp(2rem, 8vw, 5rem);
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+.timer-row-ui {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background-color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.timer-row-ui:not(:last-child) {
   margin-bottom: 1rem;
-  word-break: break-word;
 }
 
-.button-row button {
-  margin: 0.5rem;
-  padding: 0.5rem 1.5rem;
-  font-size: 1rem;
-}
-
-.durations {
-  margin-top: 2rem;
-}
-
-.durations input {
-  width: 60px;
-  margin-left: 0.5rem;
-}
-
-.progress-container {
-  width: 100%;
-  height: 12px;
-  background-color: #ddd;
-  border-radius: 6px;
-  overflow: hidden;
-  margin: 1rem 0;
-}
-
-.progress-bar {
-  height: 100%;
-  background-color: #6c63ff;
-  transition: width 0.3s ease-in-out;
-}
-
-.mode-buttons {
+.timers-column {
   display: flex;
-  justify-content: center;
-  gap: .5rem;
-  margin-bottom: .5rem;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.mode-buttons button {
-  padding: 0.25rem .5rem;
-  border: 1px solid #ccc;
-  background: white;
-  cursor: pointer;
-}
-
-.mode-buttons button.active {
-  background-color: #6c63ff;
-  color: white;
-  border: none;
-}
-
-.mode-buttons,
-.button-row {
+.goals-list {
+  margin-top: 1rem;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
   gap: 0.75rem;
 }
 
-.mode-buttons button,
-.button-row button {
-  flex: 1 1 120px;
-  min-width: 100px;
-  font-size: 1rem;
-}
-
-.timer-row {
+.goal-row {
   display: flex;
-  flex-flow: row wrap;
-  justify-content: center;
-  gap: 1rem;
-}
-.timer-title {
-  margin-bottom: 1rem;
-  text-align: center;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.timer-title input {
-  font-size: 1.5rem;
-  text-align: center;
-  padding: 0.2rem;
-  width: 100%;
-  max-width: 90%;
+.goal-row input[type="text"] {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
 }
 
-.timer-title h2 {
-  font-size: 1.75rem;
+.goal-row input[type="number"] {
+  width: 55px;
+  padding: 0.25rem;
+  background-color: transparent;
+  border: 1px solid transparent;
+}
+
+.goal-hours-label {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.strike {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.goal-name-display {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
   cursor: pointer;
-  margin: 0;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
 }
 
-.scoreboard {
-  display: flex;
-  justify-content: space-evenly;
-  margin-bottom: 0.5rem;
-  font-size: .8rem;
-  font-weight: bold;
-  padding: .35rem
+.goal-name-display:hover {
+  border-color: #ccc;
 }
 
-button.add-timer {
-  padding: 0.5rem 1.2rem;
-  font-size: 1rem;
-  background-color: #6c63ff;
+.goal-description {
+  width: 90%;
+  padding: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  resize: vertical;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.goal-description.strike {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.remove-goal-button {
+  background-color: transparent;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  margin: 1rem 0;
 }
 
-button.add-timer:hover {
-  background-color: #574fd4;
+.score-list {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0.5rem;
 }
 
-button.remove-timer {
-  margin-top: 0.75rem;
+.score-list li {
   font-size: 0.9rem;
-  background-color: #ff5c5c;
-  color: white;
+  margin-bottom: 0.25rem;
+}
+
+.remove-score-button {
+  font-size: 0.8rem;
+  background: none;
+  border: none;
+  color: #b33;
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+.remove-score-button:hover {
+  color: #800;
+}
+
+.mode-toggle-button {
+  background-color: #ddd;
   border: none;
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
 }
 
-button.remove-timer:hover {
-  background-color: #d94a4a;
+.mode-toggle-button:hover {
+  background-color: #bbb;
+}
+
+.timer-durations {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.timer-durations label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.timer-durations input {
+  width: 90px;
+  font-size: 0.85rem;
+  padding: 0.25rem;
+}
+.timer-edit-input {
+  font-size: 1rem;
+  text-align: center;
+  padding: 0.2rem 0.4rem;
+  width: 90px;
+}
+
+.readd-timer-button {
+  font-size: 0.8rem;
+  background: none;
+  border: none;
+  color: #336699;
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+.readd-timer-button:hover {
+  color: #224466;
+}
+
+.editable-duration {
+  width: "6em";
+  border: "none";
+  background: "transparent";
+  font-size: "inherit";
+  font-weight: "inherit";
+  padding: 0;
+  outline: "none";
+  cursor: "text";
+}
+
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .left-panel,
+  .right-panel {
+    width: 100%;
+  }
 }

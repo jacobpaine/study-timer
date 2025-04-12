@@ -1,303 +1,263 @@
 import React, { useState, useEffect, useRef } from "react";
-
-type Mode = "focus" | "shortBreak" | "longBreak";
-type Tone = {
-  frequency: number;
-  duration: number;
-  type?: OscillatorType;
-};
-
-const playMelody = (tones: Tone[], delayBetween = 0.05) => {
-  const ctx = new AudioContext();
-  let currentTime = ctx.currentTime;
-
-  tones.forEach(({ frequency, duration, type = "sine" }) => {
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-
-    oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, currentTime);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    gainNode.gain.setValueAtTime(1, currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, currentTime + duration);
-
-    oscillator.start(currentTime);
-    oscillator.stop(currentTime + duration);
-
-    currentTime += duration + delayBetween;
-  });
-};
-
-const focusStartMelody = [
-  { frequency: 440, duration: 0.25 }, // A4
-  { frequency: 660, duration: 0.25 }, // E5
-  { frequency: 880, duration: 0.35 }, // A5
-];
-
-const breakStartMelody = [
-  { frequency: 660, duration: 0.2, type: "triangle" },
-  { frequency: 520, duration: 0.2, type: "triangle" },
-  { frequency: 390, duration: 0.3, type: "triangle" },
-];
+import { parseDuration, playMelody } from "../utils";
+import { Mode } from "../types";
 
 const sessionEndMelody = [
-  { frequency: 784, duration: 0.2 }, // G5
-  { frequency: 659, duration: 0.2 }, // E5
-  { frequency: 523, duration: 0.3 }, // C5
+  { frequency: 784, duration: 0.2 },
+  { frequency: 659, duration: 0.2 },
+  { frequency: 523, duration: 0.3 },
 ];
 
-const playTone = (
-  frequency: number,
-  duration: number,
-  type: OscillatorType = "sine"
-) => {
-  const ctx = new AudioContext();
-  const oscillator = ctx.createOscillator();
-  const gainNode = ctx.createGain();
-
-  oscillator.connect(gainNode);
-  gainNode.connect(ctx.destination);
-
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
-  oscillator.start();
-
-  gainNode.gain.exponentialRampToValueAtTime(
-    0.0001,
-    ctx.currentTime + duration
+const formatDuration = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return (
+    `${h ? `${h}h ` : ""}${m ? `${m}m ` : ""}${s ? `${s}s` : ""}`.trim() || "0s"
   );
-  oscillator.stop(ctx.currentTime + duration);
 };
 
-const playFocusStartTone = () => playTone(880, 0.4, "sine");
-const playBreakStartTone = () => playTone(660, 0.4, "triangle");
-const playSessionEndTone = () => playTone(440, 0.6, "square");
-
-const Timer: React.FC<{ storageKey?: string }> = ({ storageKey = "timer" }) => {
-  const [completedCounts, setCompletedCounts] = useState(() => {
-    const saved = localStorage.getItem(storageKey);
-    return saved
-      ? JSON.parse(saved).completedCounts || {
-          focus: 0,
-          shortBreak: 0,
-          longBreak: 0,
-        }
-      : { focus: 0, shortBreak: 0, longBreak: 0 };
-  });
-
-  const [mode, setMode] = useState<Mode>(() => {
-    const saved = localStorage.getItem(storageKey);
-    return saved ? JSON.parse(saved).mode || "focus" : "focus";
-  });
-
-  const [isRunning, setIsRunning] = useState(false);
-
-  const [sessions, setSessions] = useState(0);
-  const [title, setTitle] = useState(() => {
-    const saved = localStorage.getItem(storageKey);
-    return saved ? JSON.parse(saved).title || "Timer" : "Timer";
-  });
+const Timer: React.FC<{
+  storageKey: string;
+  onRemove?: () => void;
+  onSessionComplete?: (
+    durationInSeconds: number,
+    title: string,
+    mode: Mode
+  ) => void;
+  onTitleChange?: (oldTitle: string, newTitle: string) => void;
+  onTickUpdate?: (secondsSpent: number, title: string, mode: Mode) => void;
+}> = ({
+  storageKey,
+  onRemove,
+  onSessionComplete,
+  onTitleChange,
+  onTickUpdate,
+}) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-
-  const [durations, setDurations] = useState(() => {
-    const saved = localStorage.getItem(storageKey);
-    return saved
-      ? JSON.parse(saved).durations || {
-          focus: 1500,
-          shortBreak: 300,
-          longBreak: 900,
-        }
-      : { focus: 1500, shortBreak: 300, longBreak: 900 };
+  const [editingTitle, setEditingTitle] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>("focus");
+  const [isRunning, setIsRunning] = useState(false);
+  const [durations, setDurations] = useState({ focus: 1500, shortBreak: 300 });
+  const [secondsLeft, setSecondsLeft] = useState(1500);
+  const [completedCounts, setCompletedCounts] = useState({
+    focus: 0,
+    shortBreak: 0,
   });
-
-  const [secondsLeft, setSecondsLeft] = useState(() => {
-    const saved = localStorage.getItem(storageKey);
-    return saved ? JSON.parse(saved).secondsLeft || 1500 : 1500;
-  });
-
+  const [elapsedTime, setElapsedTime] = useState({ focus: 0, shortBreak: 0 });
+  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [editableTimeInput, setEditableTimeInput] = useState("25m");
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const wasRunningBeforeEdit = useRef(false);
+  const hasInitializedRef = useRef(false);
+  const sessionCompletedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
+    const saved = localStorage.getItem(storageKey);
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved);
+      const {
+        durations = { focus: 1500, shortBreak: 300 },
+        mode = "focus",
+        secondsLeft: savedSeconds = 1500,
+        isRunning = false,
+        completedCounts = { focus: 0, shortBreak: 0 },
+        elapsedTime = { focus: 0, shortBreak: 0 },
+        lastUpdated,
+      } = parsed;
+
+      setDurations(durations);
+      setMode(mode);
+      setCompletedCounts(completedCounts);
+      setElapsedTime(elapsedTime);
+
+      let adjustedSeconds = durations[mode] - elapsedTime[mode];
+
+      if (isRunning && lastUpdated) {
+        const secondsPassed = Math.floor((Date.now() - lastUpdated) / 1000);
+        setElapsedTime((prev) => ({
+          ...prev,
+          [mode]: prev[mode] + secondsPassed,
+        }));
+        adjustedSeconds = Math.max(adjustedSeconds - secondsPassed, 0);
+        if (adjustedSeconds === 0) {
+          setIsRunning(false);
+        } else {
+          setIsRunning(true);
+        }
+      } else {
+        setIsRunning(false);
+      }
+
+      setSecondsLeft(adjustedSeconds);
+    } catch {
+      console.warn("Invalid saved timer data for", storageKey);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    sessionCompletedRef.current = false;
+  }, [mode, durations[mode]]);
 
   useEffect(() => {
     if (isRunning) {
       intervalRef.current = setInterval(() => {
         setSecondsLeft((prev) => {
-          if (prev === 0) {
-            handleSessionEnd();
+          const newTime = prev - 1;
+          if (newTime <= 0) {
+            if (!sessionCompletedRef.current) {
+              handleSessionEnd();
+            }
             return 0;
           }
-          return prev - 1;
+          onTickUpdate?.(1, storageKey, mode);
+          setElapsedTime((prev) => ({
+            ...prev,
+            [mode]: prev[mode] + 1,
+          }));
+          return newTime;
         });
       }, 1000);
     }
-
     return () => clearInterval(intervalRef.current!);
-  }, [isRunning]);
-
-  useEffect(() => {
-    setSecondsLeft(secondsLeft);
-  }, [mode, durations]);
+  }, [isRunning, durations, mode, completedCounts, storageKey]);
 
   useEffect(() => {
     const data = {
-      title,
-      completedCounts,
+      title: storageKey,
       durations,
       mode,
       secondsLeft,
       isRunning,
+      completedCounts,
+      elapsedTime,
+      lastUpdated: Date.now(),
     };
     localStorage.setItem(storageKey, JSON.stringify(data));
-  }, [title, completedCounts, durations, mode, secondsLeft, isRunning]);
+  }, [
+    durations,
+    mode,
+    secondsLeft,
+    isRunning,
+    completedCounts,
+    elapsedTime,
+    storageKey,
+  ]);
 
   const handleSessionEnd = () => {
+    if (sessionCompletedRef.current) return;
+    sessionCompletedRef.current = true;
+
     setIsRunning(false);
-    setCompletedCounts((prev) => ({
-      ...prev,
-      [mode]: prev[mode] + 1,
-    }));
+    setCompletedCounts((prev) => ({ ...prev, [mode]: prev[mode] + 1 }));
+
     if (mode === "focus") {
-      const nextMode = (sessions + 1) % 4 === 0 ? "longBreak" : "shortBreak";
-      setMode(nextMode);
-      setSessions((s) => s + 1);
+      setMode("shortBreak");
       playMelody(sessionEndMelody);
     } else {
       setMode("focus");
     }
+
+    onSessionComplete?.(durations[mode], storageKey, mode);
   };
 
-  const handleDurationChange = (newValue: number, targetMode: Mode) => {
-    setDurations((prev) => ({
-      ...prev,
-      [targetMode]: newValue * 60,
-    }));
-
-    if (mode === targetMode) {
-      setSecondsLeft(newValue * 60);
+  const handleTitleSubmit = () => {
+    const newTitle = editingTitle?.trim() || storageKey;
+    if (newTitle !== storageKey) {
+      onTitleChange?.(storageKey, newTitle);
     }
+    setIsEditingTitle(false);
+    setEditingTitle(null);
   };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    const h = Math.floor(seconds / 3600)
+      .toString()
+      .padStart(2, "0");
+    const m = Math.floor((seconds % 3600) / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${h > "00" ? `${h}h ` : ""}${m}m ${s}s`;
   };
-
-  const progressPercent = 100 - (secondsLeft / durations[mode]) * 100;
 
   return (
     <div className="timer">
-      <div className="scoreboard">
-        <span>🎯 Focus: {completedCounts.focus}</span>
-        <span>☕ Short: {completedCounts.shortBreak}</span>
-        <span>🛌 Long: {completedCounts.longBreak}</span>
+      {isEditingTitle ? (
+        <input
+          type="text"
+          value={editingTitle ?? storageKey}
+          onChange={(e) => setEditingTitle(e.target.value)}
+          onBlur={handleTitleSubmit}
+          onKeyDown={(e) => e.key === "Enter" && handleTitleSubmit()}
+          autoFocus
+        />
+      ) : (
+        <h3
+          onClick={() => setIsEditingTitle(true)}
+          style={{ cursor: "pointer" }}
+        >
+          {storageKey}
+        </h3>
+      )}
+
+      <div className="button-row">
+        <button onClick={() => setIsRunning((r) => !r)}>
+          {isRunning ? "Pause" : "Start"}
+        </button>
+        <button
+          onClick={() => {
+            const newMode = mode === "focus" ? "shortBreak" : "focus";
+            setMode(newMode);
+            setSecondsLeft(durations[newMode] - elapsedTime[newMode]);
+          }}
+        >
+          {mode === "focus" ? "Focus" : "Break"}
+        </button>
+        <button
+          onClick={onRemove}
+          className="remove-timer button button-danger"
+        >
+          X
+        </button>
       </div>
-      <div className="timer-title">
-        {isEditingTitle ? (
+
+      <div className="time-display">
+        {isEditingTime ? (
           <input
             type="text"
-            value={title}
-            autoFocus
-            onBlur={() => setIsEditingTitle(false)}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") setIsEditingTitle(false);
+            value={editableTimeInput}
+            onChange={(e) => setEditableTimeInput(e.target.value)}
+            onBlur={() => {
+              const newSeconds = parseDuration(editableTimeInput);
+              if (newSeconds > 0) {
+                setSecondsLeft(newSeconds);
+                setDurations((prev) => ({ ...prev, [mode]: newSeconds }));
+              }
+              setIsEditingTime(false);
+              if (wasRunningBeforeEdit.current) setIsRunning(true);
             }}
+            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            autoFocus
           />
         ) : (
-          <h2
-            onClick={() => setIsEditingTitle(true)}
-            title="Click to edit title"
-          >
-            {title || "Untitled Timer"}
-          </h2>
-        )}
-      </div>
-
-      <div className="mode-buttons">
-        <button
-          onClick={() => {
-            setIsRunning(false);
-            setMode("focus");
-            setSecondsLeft(durations.focus);
-            playMelody(breakStartMelody);
-          }}
-          className={mode === "focus" ? "active" : ""}
-        >
-          Focus
-        </button>
-        <button
-          onClick={() => {
-            setIsRunning(false);
-            setMode("shortBreak");
-            setSecondsLeft(durations.shortBreak);
-            playBreakStartTone();
-          }}
-          className={mode === "shortBreak" ? "active" : ""}
-        >
-          Short Break
-        </button>
-        <button
-          onClick={() => {
-            setIsRunning(false);
-            setMode("longBreak");
-            setSecondsLeft(durations.longBreak);
-          }}
-          className={mode === "longBreak" ? "active" : ""}
-        >
-          Long Break
-        </button>
-      </div>
-
-      <div className="time-display">{formatTime(secondsLeft)}</div>
-
-      <div className="progress-container">
-        <div
-          className="progress-bar"
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-
-      <div className="mode-buttons">
-        <div className="button-row">
-          <button onClick={() => setIsRunning((r) => !r)}>
-            {isRunning ? "Pause" : "Start"}
-          </button>
-          <button
+          <span
             onClick={() => {
+              wasRunningBeforeEdit.current = isRunning;
               setIsRunning(false);
-              setSecondsLeft(durations[mode]);
+              setEditableTimeInput(formatDuration(secondsLeft));
+              setIsEditingTime(true);
             }}
+            style={{ cursor: "pointer" }}
           >
-            Reset
-          </button>
-        </div>
-      </div>
-
-      <div className="durations">
-        <h3>Adjust Durations (minutes)</h3>
-        {(["focus", "shortBreak", "longBreak"] as Mode[]).map((type) => (
-          <div key={type}>
-            <label>
-              {type === "focus"
-                ? "Focus"
-                : type === "shortBreak"
-                ? "Short Break"
-                : "Long Break"}
-              :{" "}
-              <input
-                type="number"
-                min={1}
-                value={durations[type] / 60}
-                onChange={(e) =>
-                  handleDurationChange(Number(e.target.value), type)
-                }
-              />
-            </label>
-          </div>
-        ))}
+            {formatTime(secondsLeft)}
+          </span>
+        )}
       </div>
     </div>
   );
